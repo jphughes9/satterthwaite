@@ -1,0 +1,134 @@
+\documentclass[12pt]{article}
+%\documentclass[useAMS,usenatbib]{biom}
+%\documentclass[useAMS,usenatbib,referee]{biom}
+\usepackage{epsfig, amsmath, amsfonts, verbatim, setspace, tabularx}
+\usepackage[authoryear,round]{natbib}
+\usepackage[table]{xcolor}
+\usepackage{hyperref}
+
+\title{Computing Satterthwaite degrees of freedom for glmer models}
+\author{James P. Hughes\\
+Department of Biostatistics \\
+University of Washington \\
+Seattle, WA 98195, U.S.A. \\
+\date{\today}
+}
+\setlength{\textwidth}{6.5in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\topmargin}{0in}
+\setlength{\textheight}{8in}
+
+\newcommand{\beq}{\begin{equation}}
+\newcommand{\eeq}{\end{equation}}
+\newcommand{\bdm}{\begin{displaymath}}
+\newcommand{\edm}{\end{displaymath}}
+\newcommand{\E}{{\bf E}}
+\renewcommand{\thempfootnote}{\alph{mpfootnote}}
+\renewcommand{\baselinestretch}{1.5}
+
+\newcolumntype{Z}{>{\centering\arraybackslash}X}
+
+\bibliographystyle{apalike}
+
+\begin{document}
+
+%\begin{abstract}
+
+%\end{abstract}
+%\begin{keywords}
+%Design-based inference; Permutation test; Stepped wedge.
+%\end{keywords} 
+
+\maketitle{}
+
+\section{Introduction}
+\label{sec:intro}
+The following is based on the SAS documentation at \url{https://documentation.sas.com/doc/en/statug/15.2/statug_glimmix_details39.htm}. Also critical was the paper ``Fitting Linear Mixed-Effects Models Using lme4'' by Bates et al (Journal of Statistical Software, 67(1), 1-48, 2015).
+
+
+\section{Methods}
+\label{sec:methods}
+\subsection{lmer models}
+\subsubsection{The 1 degree of freedom case}
+Consider the t-statistic 
+\beq
+t = \frac{\ell^{\prime} \hat{\beta}}{\sqrt{\ell^{\prime} C \ell}}
+\eeq
+where i$\ell$ is a $p \times 1$ matrix that defines the contrast of interest, $\hat{\beta}$ is the fixed effects coefficient vector estimate (of length $p$), and $C$ is the variance-covariance matrix of the fixed effects. $C$ depends on $\sigma$ and the random effects parameters $\theta$ (of length $q$)
+We can compute the Satterthwaite degrees of freedom for this statistic as
+\beq
+\nu = \frac{2 (\ell^{\prime} C \ell)^2}{g^{\prime} A g}
+\eeq
+where $A$ is the variance-covariance matrix of the random effects parameter estimates, $\hat{\theta}$, and $g$ is the first derivative of $\ell^{\prime} C \ell$ with respect to $\theta$, evaluated at $\hat{\theta}$.
+
+Given a lmer fitted object, rslt, we can extract
+\begin{eqnarray*}
+\hat{\theta} &=& \mbox{getME(rslt,"theta")} \\
+\hat{\beta} &=& \mbox{fixef(rslt)} \\
+C &=& \mbox{vcov(rslt)} \\
+A &=& \mbox{MASS::ginv(rslt@optinfo\$derivs\$Hessian/2)[1:q,1:q]}
+\end{eqnarray*}
+where $q$ is the number of random effects parameters (not including $\sigma$). Note that this code gives the so-called ``theta'' formulation of the random effects parameters (instead of the variance formulation). The difficulty is getting $g$ (or equivalently, ${d C}/{d \theta}$). to do this we use the grad function (important: use right-sided derivatives) from the numDeriv package by calling 
+
+\begin{verbatim}
+g = grad(func_lmer,theta,obj=rslt,lvec=lvec)}
+\end{verbatim}
+
+The key function, \verb+func_lmer+, 
+returns an updated value of $\ell^{\prime} C \ell$ for a given value of theta. It does this by extracting information from the fitted object (rslt) and recomputing $C$ as a function of $\theta$, following information provided in the Bates et al article (particularly critical was equation 54 and section 3.6). See the code for \verb+func_lmer+.
+
+\subsubsection{The multi-degree of freedom case}
+Let $\ell$ be an $r \times p$ matrix defining the $r$ contrasts of interest so that the hypothesis of intertest is
+\beq
+Ho: L \hat{\beta} = 0
+\eeq
+
+Define the $F$ statistic as
+\bdm
+F = \hat{\beta}^\prime L^\prime (L C L^\prime)^{-1} L \hat{\beta}
+\edm
+$F$ is distributed as according to an F-distribution with $r$ and $df$ degrees of freedom where $df$ is computed as follows. 
+
+Compute the spectral decomposition (R function eiger) of $L C L^\prime = U^\prime D U$. Define $b_j$ as the $j$'th row of $U L$ (an $r \times p$ matrix). Then compute $g_j$, the gradient of $b_j C b_j^\prime$ with respect to $\theta$ (so $g_j$ is a vector of length $q$). We use the jacobian function from the numDeriv package (important: use right-sided derivatives), along with the \verb+func_lmer+  function to compute $g_j$.
+
+Next, compute
+\bdm
+\nu_j = \frac{2 (D_j)^2}{g_j^{\prime} A g_j}
+\edm
+for $j = 1 \ldots r$, and let
+\bdm
+E = \sum_{j=1}^r \frac{\nu_j}{\nu_j -2} I(\nu_j > 2)
+\edm
+
+Then
+\bdm
+df = \frac{E}{E - r}
+\edm
+if $E > r$ and $0$ otherwise.
+
+%\section{Simulation Results}
+%\label{sec:results}
+
+%\section{Example} 
+%\label{sec:example}
+
+\section{Discussion} 
+\label{sec:discuss}
+
+
+\vspace{.5in}
+
+\noindent
+Acknowledgements: This research was supported by NIH grant AI29168.
+
+%\clearpage
+%\pagebreak
+%\bibliography{References}
+
+%\section{Supporting Information}
+
+
+%\section*{\underline{Appendix}}
+
+
+\end{document}
