@@ -1,32 +1,52 @@
-\name{satterthwaite.lmerMod}
+\name{satterthwaite.lmerMod, satterthwaite.glmerMod}
 \alias{satterthwaite}
-%- Also NEED an '\alias' for EACH other topic documented here.
+
 \title{
-Compute Satterthwaite degrees of freedom for a hypothesis test for an lmerMod object
+Compute Satterthwaite degrees of freedom for a hypothesis test for an lmerMod/glmerMod object
 }
 \description{
 \code{satterthwaite} returns denominator degrees of freedom for a test
-of the hypothesis \deqn{ Ho: L \beta = 0} for lmer objects, where \eqn{L} is 
+of the hypothesis \deqn{ Ho: L \beta = 0} for lmer/glmer objects, where \eqn{L} is 
 a \eqn{q \times p} matrix of contrasts and \eqn{\beta} is the vector of fixed effects.
 }
 \usage{
-satterthwaite(obj,L)
+satterthwaite(obj,L,simplify=FALSE)
 }
 
 \arguments{
  \item{obj}{
-Fitted lmer object
+Fitted lmer/glmer object
 }
 \item{L}{
 Matrix of (independent) contrasts of dimension q x p where q is the number contrasts and p is the 
 number of fixed effects
 }
+\item{simplify}{
+If one or more (but not all) of the variance components are zero on the theta scale,
+\code{simplify=TRUE} tells satterthwaite to compute the degrees of freedom after 
+eliminating the zero variance components from the calculation (and keeping the 
+same fixed effects). If \code{simplify=FALSE} then the function returns an error if there 
+are any zero variance components (on the theta scale). Default is \code{simplify=FALSE}.
+Note that the function returns an error when all variance components are zero regardless
+of the value of \code{simplify}.
+}
 }
 
 \details{
-This function implements the df_1d and df_md function from the mmrm package for lmer models.
+The lmerMod function implements the df_1d and df_md function from the mmrm package for lmer models.
 See accompanying article (Satterthwaite’s Method for Degrees of Freedom in Linear Mixed Models by Rune Haubo B Christensen)
-for details on the computational methods. The function gives the 
+for details on the computational methods. The glmerMod function makes some changes, primarily by computing the 
+variance-covariance matrix of the parameters using the internally available Hessian (\code{model@optinfo$derivs$Hessian}) 
+ and derivatives of the fixed effect covariance matrix
+the internal function \code{pp$unsc()} (rather than the \code{pp$RXi()} function).
+
+In satterthwaite.glmerMod(), if there is a variance component on the boundary
+(defined as <.001 in absolute value on the theta scale), then a warning is issued
+ and the degrees of freemdom calculation is done on (the
+equivalent of) a simpler model without that variance component. If all variance 
+components are on the boundary, the function returns an error.
+
+The satterthwaite function gives the 
 denominator degrees of freedom for an F-test of the hypothesis Ho. A p-value is computed as
 \code{1-pf(f,q,df)} where \code{f} is the computed f-statistic. For a single contrast the
 p-value is computed as
@@ -36,18 +56,18 @@ p-value is computed as
 \value{
 For 1 degree of freedom tests, a list with elements:
 
-\item{estimate} {Point estimate of the contrast}
-\item{se} {Standard error of the contrast}
-\item{tstat} {t-statistic for the test Ho}
-\item{ddf} {Satterthwaite degrees of freedom for the t-test of Ho}
-\item{pvalue} {p-value for the t-test}
+\item{estimate}{Point estimate of the contrast}
+\item{se}{Standard error of the contrast}
+\item{tstat}{t-statistic for the test Ho}
+\item{ddf}{Satterthwaite degrees of freedom for the t-test of Ho}
+\item{pvalue}{p-value for the t-test}
 
 
 For multi-degree of freedom tests, a list with elements:
-\item{F value} {F-statistic for the test Ho}
-\item{q} {Numerator degrees of freedom for the F-test of Ho}
-\item{ddf} {Satterthwaite denominator degrees of freedom for the F-test of Ho}
-\item{pvalue} {p-value for the F-test}
+\item{F value}{F-statistic for the test Ho}
+\item{q}{Numerator degrees of freedom for the F-test of Ho}
+\item{ddf}{Satterthwaite denominator degrees of freedom for the F-test of Ho}
+\item{pvalue}{p-value for the F-test}
 }
 
 \references{
